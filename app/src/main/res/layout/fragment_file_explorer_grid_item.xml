@@ -1,91 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Grid cell layout for the file explorer.
-    The thumbnail fills a square area at the top (aspect ratio 1:1),
-    and the filename sits below it. No details (size/date) or options button.
-    Selection state is shown via selectionOverlay.
--->
-<LinearLayout
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="?selectableItemBackground">
+    android:background="?selectableItemBackground"
+    android:padding="2dp">
 
-    <!-- Square thumbnail area using ConstraintLayout aspect-ratio -->
-    <FrameLayout
-        android:layout_width="match_parent"
+    <!-- Square aspect ratio container for the thumbnail -->
+    <ImageView
+        android:id="@+id/file_icon"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:id="@+id/grid_thumbnail_frame">
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_file"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintDimensionRatio="1:1" />
 
-        <!--
-            We rely on a width=match_parent + a post-layout measurement in the adapter
-            to set height = width. Alternatively we use a ConstraintLayout workaround.
-        -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
+    <ImageView
+        android:id="@+id/dir_icon"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerInside"
+        android:padding="24dp"
+        android:src="@drawable/ic_folder"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintDimensionRatio="1:1" />
 
-            <!-- File thumbnail (images/videos) -->
-            <ImageView
-                android:id="@+id/file_icon"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:scaleType="centerCrop"
-                android:src="@drawable/ic_file"
-                android:contentDescription="@string/file_icon"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintDimensionRatio="1:1"/>
+    <View
+        android:id="@+id/selection_overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#66000000"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="@id/file_icon"
+        app:layout_constraintBottom_toBottomOf="@id/file_icon"
+        app:layout_constraintLeft_toLeftOf="@id/file_icon"
+        app:layout_constraintRight_toRightOf="@id/file_icon" />
 
-            <!-- Folder / dir icon -->
-            <ImageView
-                android:id="@+id/dir_icon"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:scaleType="centerInside"
-                android:padding="12dp"
-                android:src="@drawable/ic_folder"
-                android:contentDescription="@string/file_icon"
-                android:visibility="gone"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintDimensionRatio="1:1"/>
-
-            <!-- Selection highlight overlay -->
-            <View
-                android:id="@+id/selection_overlay"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:background="#66000000"
-                android:visibility="gone"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintDimensionRatio="1:1"/>
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </FrameLayout>
-
-    <!-- Filename label below thumbnail -->
     <TextView
         android:id="@+id/file_name"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:maxLines="2"
         android:ellipsize="end"
         android:textSize="11sp"
-        android:paddingStart="4dp"
-        android:paddingEnd="4dp"
-        android:paddingTop="3dp"
-        android:paddingBottom="3dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
         android:gravity="center_horizontal"
-        android:fontFamily="sans-serif"/>
+        android:fontFamily="sans-serif"
+        app:layout_constraintTop_toBottomOf="@id/file_icon"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
