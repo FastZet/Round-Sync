@@ -39,7 +39,7 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<Recycl
     /** ViewType constants */
     public static final int VIEW_TYPE_LIST = 0;
     public static final int VIEW_TYPE_GRID = 1;
-    
+
     private List<FileItem> files;
     private View emptyView;
     private View noSearchResultsView;
@@ -55,6 +55,8 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<Recycl
     private boolean isGridMode;
     private Context context;
     private long sizeLimit;
+    private java.util.Set<String> loadedThumbnails = new java.util.HashSet<>();
+    private long refreshSignature = 0L;
 
     public interface OnClickListener {
         void onFileClicked(FileItem fileItem);
@@ -153,7 +155,7 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<Recycl
             holder.fileModTime.setVisibility(View.VISIBLE);
             holder.fileModTime.setText(item.getHumanReadableModTime());
         }
-        
+
         holder.fileName.setText(item.getName());
 
         if (isInSelectMode) {
@@ -271,6 +273,10 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<Recycl
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .placeholder(R.drawable.ic_file);
 
+            if (refreshSignature != 0L && !loadedThumbnails.contains(item.getPath())) {
+                glideOption = glideOption.signature(new com.bumptech.glide.signature.ObjectKey(refreshSignature));
+            }
+
             boolean localLoad = item.getRemote().getType() == RemoteItem.SAFW;
             if (localLoad) {
                 bindSafFile(target, item, glideOption);
@@ -283,6 +289,17 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<Recycl
                         .load(new PersistentGlideUrl(url))
                         .apply(glideOption)
                         .thumbnail(0.1f)
+                        .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                            @Override
+                            public boolean onLoadFailed(@androidx.annotation.Nullable com.bumptech.glide.load.engine.GlideException e, Object model, com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, boolean isFirstResource) {
+                                return false;
+                            }
+                            @Override
+                            public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                                loadedThumbnails.add(item.getPath());
+                                return false;
+                            }
+                        })
                         .into(target);
             }
         } else {
@@ -297,6 +314,17 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<Recycl
                     .load(contentUri)
                     .apply(glideOption)
                     .thumbnail(0.1f)
+                    .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(@androidx.annotation.Nullable com.bumptech.glide.load.engine.GlideException e, Object model, com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, boolean isFirstResource) {
+                            return false;
+                        }
+                        @Override
+                        public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                            loadedThumbnails.add(item.getPath());
+                            return false;
+                        }
+                    })
                     .into(target);
         } catch (FileAccessError e) {
             FLog.e(TAG, "onBindViewHolder: SAF error", e);
@@ -329,6 +357,19 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<Recycl
      * Switch between grid and list display modes.
      * Call this before (or together with) swapping the RecyclerView LayoutManager.
      */
+    public void refreshMissingThumbnails() {
+        refreshSignature = System.currentTimeMillis();
+        for (int i = 0; i < files.size(); i++) {
+            FileItem item = files.get(i);
+            String mimeType = item.getMimeType();
+            if ((mimeType.startsWith("image/") || mimeType.startsWith("video/")) && item.getSize() <= sizeLimit) {
+                if (!loadedThumbnails.contains(item.getPath())) {
+                    notifyItemChanged(i);
+                }
+            }
+        }
+    }
+
     public void setGridMode(boolean gridMode) {
         this.isGridMode = gridMode;
         notifyDataSetChanged();
