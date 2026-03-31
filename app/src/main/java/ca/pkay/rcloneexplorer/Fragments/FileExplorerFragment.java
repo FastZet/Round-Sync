@@ -282,15 +282,20 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
         Context context = view.getContext();
 
         RecyclerView recyclerView = view.findViewById(R.id.file_explorer_list);
-        recyclerViewLinearLayoutManager = new LinearLayoutManager(context);
         recyclerView.setItemAnimator(new LandingAnimator());
-        // Apply stored layout mode: grid or list
+        if (directoryObject != null && directoryObject.getRemote() != null) {
+            String currentPath = directoryObject.getCurrentPath() != null ? directoryObject.getCurrentPath() : "";
+            isGridMode = PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
+                    getString(R.string.pref_key_grid_view) + "_" + directoryObject.getRemote().getName() + "_" + currentPath, false);
+        }
+
         if (isGridMode) {
             int columns = is720dp ? 7 : 5;
-            recyclerView.setLayoutManager(new GridLayoutManager(context, columns));
+            recyclerViewLinearLayoutManager = new GridLayoutManager(context, columns);
         } else {
-            recyclerView.setLayoutManager(recyclerViewLinearLayoutManager);
+            recyclerViewLinearLayoutManager = new LinearLayoutManager(context);
         }
+        recyclerView.setLayoutManager(recyclerViewLinearLayoutManager);
         View emptyFolderView = view.findViewById(R.id.empty_folder_view);
         View noSearchResultsView = view.findViewById(R.id.no_search_results_view);
         recyclerViewAdapter = new FileExplorerRecyclerViewAdapter(context, emptyFolderView, noSearchResultsView, this);
@@ -672,6 +677,11 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
             case R.id.action_toggle_view:
                 toggleViewMode();
                 return true;
+            case R.id.action_refresh_thumbnails:
+                if (recyclerViewAdapter != null) {
+                    recyclerViewAdapter.refreshMissingThumbnails();
+                }
+                return true;
             case android.R.id.home:
                 if (isInMoveMode) {
                     cancelMoveClicked();
@@ -683,6 +693,36 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
                 return true;
             default:
                     return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void applyDirectoryViewMode() {
+        if (directoryObject == null || directoryObject.getRemote() == null) return;
+        String currentPath = directoryObject.getCurrentPath() != null ? directoryObject.getCurrentPath() : "";
+        String key = getString(R.string.pref_key_grid_view) + "_" + directoryObject.getRemote().getName() + "_" + currentPath;
+
+        boolean prefGridMode = PreferenceManager.getDefaultSharedPreferences(context).getBoolean(key, false);
+
+        if (isGridMode != prefGridMode || recyclerView.getLayoutManager() == null) {
+            isGridMode = prefGridMode;
+
+            if (isGridMode && !isThumbnailsServiceRunning) {
+                initializeThumbnailParams();
+                startThumbnailService();
+            }
+
+            recyclerViewAdapter.showThumbnails(showThumbnails || isGridMode);
+
+            if (isGridMode) {
+                int columns = is720dp ? 7 : 5;
+                recyclerViewLinearLayoutManager = new GridLayoutManager(context, columns);
+            } else {
+                recyclerViewLinearLayoutManager = new LinearLayoutManager(context);
+            }
+            recyclerView.setLayoutManager(recyclerViewLinearLayoutManager);
+
+            recyclerViewAdapter.setGridMode(isGridMode);
+            updateToggleViewIcon();
         }
     }
 
@@ -698,29 +738,27 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
             startThumbnailService();
         }
 
-        // Update thumbnail setting: in grid mode it's always true, else fallback to global pref
         recyclerViewAdapter.showThumbnails(showThumbnails || isGridMode);
 
-        // Swap the LayoutManager on the live RecyclerView
-        RecyclerView recyclerView = requireView().findViewById(R.id.file_explorer_list);
         if (isGridMode) {
             int columns = is720dp ? 7 : 5;
-            recyclerView.setLayoutManager(new GridLayoutManager(context, columns));
+            recyclerViewLinearLayoutManager = new GridLayoutManager(context, columns);
         } else {
-            recyclerView.setLayoutManager(new LinearLayoutManager(context));
+            recyclerViewLinearLayoutManager = new LinearLayoutManager(context);
         }
+        recyclerView.setLayoutManager(recyclerViewLinearLayoutManager);
 
-        // Inform the adapter so it inflates the right ViewHolder next time
         recyclerViewAdapter.setGridMode(isGridMode);
-
-        // Update the toolbar icon
         updateToggleViewIcon();
 
-        // Persist the user's choice
-        PreferenceManager.getDefaultSharedPreferences(context)
-                .edit()
-                .putBoolean(getString(R.string.pref_key_grid_view), isGridMode)
-                .apply();
+        if (directoryObject != null && directoryObject.getRemote() != null) {
+            String currentPath = directoryObject.getCurrentPath() != null ? directoryObject.getCurrentPath() : "";
+            String key = getString(R.string.pref_key_grid_view) + "_" + directoryObject.getRemote().getName() + "_" + currentPath;
+            PreferenceManager.getDefaultSharedPreferences(context)
+                    .edit()
+                    .putBoolean(key, isGridMode)
+                    .apply();
+        }
     }
 
     /**
@@ -1223,6 +1261,7 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
             swipeRefreshLayout.setRefreshing(true);
             directoryObject.restoreFromCache(path);
             sortDirectory();
+            applyDirectoryViewMode();
             recyclerViewAdapter.newData(directoryObject.getDirectoryContent());
             if (directoryPosition.containsKey(directoryObject.getCurrentPath())) {
                 int position = directoryPosition.get(directoryObject.getCurrentPath());
@@ -1232,6 +1271,7 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
         } else if (directoryObject.isPathInCache(path)) {
             directoryObject.restoreFromCache(path);
             sortDirectory();
+            applyDirectoryViewMode();
             recyclerViewAdapter.newData(directoryObject.getDirectoryContent());
             if (directoryPosition.containsKey(directoryObject.getCurrentPath())) {
                 int position = directoryPosition.get(directoryObject.getCurrentPath());
@@ -1239,6 +1279,7 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
             }
         } else {
             directoryObject.setPath(path);
+            applyDirectoryViewMode();
             fetchDirectoryTask = new FetchDirectoryContent().execute();
         }
         return true;
@@ -1278,16 +1319,19 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
             swipeRefreshLayout.setRefreshing(true);
             directoryObject.restoreFromCache(fileItem.getPath());
             sortDirectory();
+            applyDirectoryViewMode();
             recyclerViewAdapter.newData(directoryObject.getDirectoryContent());
             fetchDirectoryTask = new FetchDirectoryContent(true).execute();
         } else if (directoryObject.isPathInCache(fileItem.getPath())) {
             directoryObject.restoreFromCache(fileItem.getPath());
             sortDirectory();
+            applyDirectoryViewMode();
             recyclerViewAdapter.newData(directoryObject.getDirectoryContent());
             swipeRefreshLayout.setRefreshing(false);
         } else {
             directoryObject.setPath(fileItem.getPath());
             recyclerViewAdapter.clear();
+            applyDirectoryViewMode();
             fetchDirectoryTask = new FetchDirectoryContent().execute();
         }
     }
@@ -1457,6 +1501,7 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
             swipeRefreshLayout.setRefreshing(true);
             directoryObject.restoreFromCache(path);
             sortDirectory();
+            applyDirectoryViewMode();
             recyclerViewAdapter.newData(directoryObject.getDirectoryContent());
             if (directoryPosition.containsKey(directoryObject.getCurrentPath())) {
                 int position = directoryPosition.get(directoryObject.getCurrentPath());
@@ -1466,12 +1511,14 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
         } else if (directoryObject.isPathInCache(path)) {
             directoryObject.restoreFromCache(path);
             sortDirectory();
+            applyDirectoryViewMode();
             recyclerViewAdapter.newData(directoryObject.getDirectoryContent());
             if (directoryPosition.containsKey(directoryObject.getCurrentPath())) {
                 int position = directoryPosition.get(directoryObject.getCurrentPath());
                 recyclerViewLinearLayoutManager.scrollToPositionWithOffset(position, 10);
             }
         } else {
+            applyDirectoryViewMode();
             fetchDirectoryTask = new FetchDirectoryContent().execute();
         }
     }
