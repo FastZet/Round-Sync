@@ -24,7 +24,7 @@ class WifiConnectivitiyUtil {
         @Deprecated("Use dataConnection() instead!")
         fun checkWifiOnAndConnected(mContext: Context): Boolean {
             val wifiMgr =
-                mContext.getSystemService(Context.WIFI_SERVICE) as WifiManager? ?: return false
+                mContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager? ?: return false
             return if (wifiMgr.isWifiEnabled) {
                 // Wi-Fi adapter is ON
                 // WifiManager requires location access. This is not available, so we query the metered instead.
