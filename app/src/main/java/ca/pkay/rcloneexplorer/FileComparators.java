@@ -17,7 +17,7 @@ public class FileComparators {
                     return 1;
                 }
 
-                return t1.getName().toLowerCase().compareTo(fileItem.getName().toLowerCase());
+                return t1.getName().toLowerCase(java.util.Locale.ROOT).compareTo(fileItem.getName().toLowerCase(java.util.Locale.ROOT));
             }
         }
 
@@ -31,7 +31,7 @@ public class FileComparators {
                     return 1;
                 }
 
-                return fileItem.getName().toLowerCase().compareTo(t1.getName().toLowerCase());
+                return fileItem.getName().toLowerCase(java.util.Locale.ROOT).compareTo(t1.getName().toLowerCase(java.util.Locale.ROOT));
             }
         }
 
@@ -110,7 +110,7 @@ public class FileComparators {
                 return 1;
             }
 
-            return t1.getName().toLowerCase().compareTo(file.getName().toLowerCase());
+            return t1.getName().toLowerCase(java.util.Locale.ROOT).compareTo(file.getName().toLowerCase(java.util.Locale.ROOT));
         }
     }
 
@@ -124,7 +124,7 @@ public class FileComparators {
                 return 1;
             }
 
-            return o1.getName().toLowerCase().compareTo(o2.getName().toLowerCase());
+            return o1.getName().toLowerCase(java.util.Locale.ROOT).compareTo(o2.getName().toLowerCase(java.util.Locale.ROOT));
         }
     }
 
@@ -139,7 +139,7 @@ public class FileComparators {
             }
 
             if (o1.isDirectory() && o2.isDirectory()) {
-                return o1.getName().toLowerCase().compareTo(o2.getName().toLowerCase());
+                return o1.getName().toLowerCase(java.util.Locale.ROOT).compareTo(o2.getName().toLowerCase(java.util.Locale.ROOT));
             }
 
             return Long.compare(o2.length(), o1.length());
@@ -157,7 +157,7 @@ public class FileComparators {
             }
 
             if (o1.isDirectory() && o2.isDirectory()) {
-                return o1.getName().toLowerCase().compareTo(o2.getName().toLowerCase());
+                return o1.getName().toLowerCase(java.util.Locale.ROOT).compareTo(o2.getName().toLowerCase(java.util.Locale.ROOT));
             }
 
             return Long.compare(o1.length(), o2.length());
