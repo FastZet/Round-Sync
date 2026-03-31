@@ -32,9 +32,14 @@ import ca.pkay.rcloneexplorer.util.FLog;
 import io.github.x0b.safdav.SafAccessProvider;
 import io.github.x0b.safdav.file.FileAccessError;
 
-public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileExplorerRecyclerViewAdapter.ViewHolder> {
+public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private static final String TAG = "FileExplorerRVA";
+
+    /** ViewType constants */
+    public static final int VIEW_TYPE_LIST = 0;
+    public static final int VIEW_TYPE_GRID = 1;
+    
     private List<FileItem> files;
     private View emptyView;
     private View noSearchResultsView;
@@ -47,6 +52,7 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
     private boolean showThumbnails;
     private boolean optionsDisabled;
     private boolean wrapFileNames;
+    private boolean isGridMode;
     private Context context;
     private long sizeLimit;
 
@@ -72,22 +78,56 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
         canSelect = true;
         wrapFileNames = true;
         optionsDisabled = false;
+        isGridMode = false;
         sizeLimit = PreferenceManager.getDefaultSharedPreferences(context)
                 .getLong(context.getString(R.string.pref_key_thumbnail_size_limit),
                         context.getResources().getInteger(R.integer.default_thumbnail_size_limit));
     }
 
-    @NonNull
+    // ─────────────────────────────────────────────────────────────────────────
+    // ViewType dispatch
+    // ─────────────────────────────────────────────────────────────────────────
+
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.fragment_file_explorer_item, parent, false);
-        return new ViewHolder(view);
+    public int getItemViewType(int position) {
+        return isGridMode ? VIEW_TYPE_GRID : VIEW_TYPE_LIST;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // ViewHolder creation
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @NonNull
     @Override
-    public void onBindViewHolder(@NonNull final ViewHolder holder, int position) {
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        if (viewType == VIEW_TYPE_GRID) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.fragment_file_explorer_grid_item, parent, false);
+            return new GridViewHolder(view);
+        } else {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.fragment_file_explorer_item, parent, false);
+            return new ViewHolder(view);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Binding
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Override
+    public void onBindViewHolder(@NonNull final RecyclerView.ViewHolder rawHolder, int position) {
         final FileItem item = files.get(position);
 
+        if (rawHolder instanceof GridViewHolder) {
+            bindGridViewHolder((GridViewHolder) rawHolder, item);
+        } else {
+            bindListViewHolder((ViewHolder) rawHolder, item);
+        }
+    }
+
+    /** Bind a list-mode row (original behaviour, unchanged). */
+    private void bindListViewHolder(@NonNull final ViewHolder holder, final FileItem item) {
         holder.fileItem = item;
         if (item.isDir()) {
             holder.dirIcon.setVisibility(View.VISIBLE);
@@ -103,32 +143,7 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
         }
 
         if (showThumbnails && !item.isDir()) {
-            String server = "http://127.0.0.1:29179/";
-            boolean localLoad = item.getRemote().getType() == RemoteItem.SAFW;
-            String mimeType = item.getMimeType();
-            if ((mimeType.startsWith("image/") || mimeType.startsWith("video/")) && item.getSize() <= sizeLimit) {
-                RequestOptions glideOption = new RequestOptions()
-                        .centerCrop()
-                        .diskCacheStrategy(DiskCacheStrategy.ALL)
-                        .placeholder(R.drawable.ic_file);
-                if(localLoad) {
-                    bindSafFile(holder, item, glideOption);
-                } else {
-                    String[] serverParams = listener.getThumbnailServerParams();
-                    String hiddenPath = serverParams[0];
-                    int serverPort = Integer.parseInt(serverParams[1]);
-                    String url = "http://127.0.0.1:" + serverPort + "/" + hiddenPath + '/' + item.getPath();
-                    Glide
-                            .with(context)
-                            .load(new PersistentGlideUrl(url))
-                            .apply(glideOption)
-                            .thumbnail(0.1f)
-                            .into(holder.fileIcon);
-                }
-
-            } else {
-                holder.fileIcon.setImageResource(R.drawable.ic_file);
-            }
+            loadThumbnail(holder.fileIcon, item);
         }
 
         RemoteItem itemRemote = item.getRemote();
@@ -152,11 +167,7 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
         }
 
         if (isInMoveMode) {
-            if (item.isDir()) {
-                holder.view.setAlpha(1f);
-            } else {
-                holder.view.setAlpha(.5f);
-            }
+            holder.view.setAlpha(item.isDir() ? 1f : .5f);
         } else if (holder.view.getAlpha() == .5f) {
             holder.view.setAlpha(1f);
         }
@@ -180,7 +191,7 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
 
         holder.view.setOnClickListener(view -> {
             if (isInSelectMode) {
-                onLongClickAction(item, holder);
+                onLongClickAction(item, holder.view, holder.fileItem);
             } else {
                 onClickAction(item, holder.getAdapterPosition());
             }
@@ -188,35 +199,112 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
 
         holder.view.setOnLongClickListener(view -> {
             if (!isInMoveMode && canSelect) {
-                onLongClickAction(item, holder);
+                onLongClickAction(item, holder.view, item);
             }
             return true;
         });
 
         holder.icons.setOnClickListener(v -> {
             if (!isInMoveMode && canSelect) {
-                onLongClickAction(item, holder);
+                onLongClickAction(item, holder.view, item);
             }
         });
     }
 
-    private void bindSafFile(@NonNull ViewHolder holder, FileItem item, RequestOptions glideOption) {
+    /** Bind a grid-mode cell. */
+    private void bindGridViewHolder(@NonNull final GridViewHolder holder, final FileItem item) {
+        if (item.isDir()) {
+            holder.dirIcon.setVisibility(View.VISIBLE);
+            holder.fileIcon.setVisibility(View.GONE);
+        } else {
+            holder.fileIcon.setVisibility(View.VISIBLE);
+            holder.dirIcon.setVisibility(View.GONE);
+            if (showThumbnails) {
+                loadThumbnail(holder.fileIcon, item);
+            } else {
+                holder.fileIcon.setImageResource(R.drawable.ic_file);
+            }
+        }
+
+        holder.fileName.setText(item.getName());
+
+        // Selection overlay
+        if (isInSelectMode && selectedItems.contains(item)) {
+            holder.selectionOverlay.setVisibility(View.VISIBLE);
+        } else {
+            holder.selectionOverlay.setVisibility(View.GONE);
+        }
+
+        // Move-mode: dim files, keep dirs bright
+        if (isInMoveMode) {
+            holder.itemView.setAlpha(item.isDir() ? 1f : .5f);
+        } else if (holder.itemView.getAlpha() == .5f) {
+            holder.itemView.setAlpha(1f);
+        }
+
+        holder.itemView.setOnClickListener(view -> {
+            if (isInSelectMode) {
+                onLongClickAction(item, holder.itemView, item);
+            } else {
+                onClickAction(item, holder.getAdapterPosition());
+            }
+        });
+
+        // Long-press enters selection mode (no per-file options button in grid)
+        holder.itemView.setOnLongClickListener(view -> {
+            if (!isInMoveMode && canSelect) {
+                onLongClickAction(item, holder.itemView, item);
+            }
+            return true;
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Shared thumbnail loading (used by both list & grid bind methods)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void loadThumbnail(ImageView target, FileItem item) {
+        String mimeType = item.getMimeType();
+        if ((mimeType.startsWith("image/") || mimeType.startsWith("video/")) && item.getSize() <= sizeLimit) {
+            RequestOptions glideOption = new RequestOptions()
+                    .centerCrop()
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .placeholder(R.drawable.ic_file);
+
+            boolean localLoad = item.getRemote().getType() == RemoteItem.SAFW;
+            if (localLoad) {
+                bindSafFile(target, item, glideOption);
+            } else {
+                String[] serverParams = listener.getThumbnailServerParams();
+                String hiddenPath = serverParams[0];
+                int serverPort = Integer.parseInt(serverParams[1]);
+                String url = "http://127.0.0.1:" + serverPort + "/" + hiddenPath + '/' + item.getPath();
+                Glide.with(context)
+                        .load(new PersistentGlideUrl(url))
+                        .apply(glideOption)
+                        .thumbnail(0.1f)
+                        .into(target);
+            }
+        } else {
+            target.setImageResource(R.drawable.ic_file);
+        }
+    }
+
+    private void bindSafFile(ImageView target, FileItem item, RequestOptions glideOption) {
         try {
-            Uri contentUri = SafAccessProvider.getDirectServer(context).getDocumentUri('/'+ item.getPath());
-            Glide
-                    .with(context)
+            Uri contentUri = SafAccessProvider.getDirectServer(context).getDocumentUri('/' + item.getPath());
+            Glide.with(context)
                     .load(contentUri)
                     .apply(glideOption)
                     .thumbnail(0.1f)
-                    .into(holder.fileIcon);
+                    .into(target);
         } catch (FileAccessError e) {
             FLog.e(TAG, "onBindViewHolder: SAF error", e);
-            holder.fileIcon.setImageResource(R.drawable.ic_file);
+            target.setImageResource(R.drawable.ic_file);
         }
     }
 
     private static class PersistentGlideUrl extends GlideUrl {
-
         public PersistentGlideUrl(String url) {
             super(url);
         }
@@ -232,6 +320,27 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
             }
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Grid mode switch
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Switch between grid and list display modes.
+     * Call this before (or together with) swapping the RecyclerView LayoutManager.
+     */
+    public void setGridMode(boolean gridMode) {
+        this.isGridMode = gridMode;
+        notifyDataSetChanged();
+    }
+
+    public boolean isGridMode() {
+        return isGridMode;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Standard adapter API (unchanged)
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public int getItemCount() {
@@ -377,17 +486,9 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
 
     private void showEmptyState(Boolean show) {
         if (isInSearchMode) {
-            if (show) {
-                noSearchResultsView.setVisibility(View.VISIBLE);
-            } else {
-                noSearchResultsView.setVisibility(View.INVISIBLE);
-            }
+            noSearchResultsView.setVisibility(show ? View.VISIBLE : View.INVISIBLE);
         } else {
-            if (show) {
-                emptyView.setVisibility(View.VISIBLE);
-            } else {
-                emptyView.setVisibility(View.INVISIBLE);
-            }
+            emptyView.setVisibility(show ? View.VISIBLE : View.INVISIBLE);
         }
     }
 
@@ -431,10 +532,15 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
         return context.getColor(R.color.selectedItem);
     }
 
-    private void onLongClickAction(FileItem item, ViewHolder holder) {
+    /**
+     * Unified long-click handler used by both list and grid modes.
+     * In grid mode the itemView is passed directly (no separate ViewHolder).
+     */
+    private void onLongClickAction(FileItem item, View itemView, FileItem ignored) {
         if (selectedItems.contains(item)) {
             selectedItems.remove(item);
-            holder.view.setBackgroundColor(Color.TRANSPARENT);
+            // Reset background / overlay for list mode; grid mode redraws via notifyDataSetChanged
+            itemView.setBackgroundColor(Color.TRANSPARENT);
             if (selectedItems.size() == 0) {
                 isInSelectMode = false;
                 listener.onFileDeselected();
@@ -443,12 +549,17 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
         } else {
             selectedItems.add(item);
             isInSelectMode = true;
-            holder.view.setBackgroundColor(getSelectionBackgroundColor());
+            itemView.setBackgroundColor(getSelectionBackgroundColor());
             listener.onFilesSelected();
         }
         notifyDataSetChanged();
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // ViewHolders
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Original list-mode ViewHolder. */
     public class ViewHolder extends RecyclerView.ViewHolder {
 
         public final View view;
@@ -475,5 +586,22 @@ public class FileExplorerRecyclerViewAdapter extends RecyclerView.Adapter<FileEx
             this.interpunct = view.findViewById(R.id.interpunct);
         }
     }
-}
 
+    /** Grid-mode ViewHolder — square thumbnail cell. */
+    public class GridViewHolder extends RecyclerView.ViewHolder {
+
+        public final ImageView fileIcon;
+        public final ImageView dirIcon;
+        public final TextView fileName;
+        /** Semi-transparent overlay shown when the cell is selected. */
+        public final View selectionOverlay;
+
+        GridViewHolder(View itemView) {
+            super(itemView);
+            this.fileIcon = itemView.findViewById(R.id.file_icon);
+            this.dirIcon = itemView.findViewById(R.id.dir_icon);
+            this.fileName = itemView.findViewById(R.id.file_name);
+            this.selectionOverlay = itemView.findViewById(R.id.selection_overlay);
+        }
+    }
+}
