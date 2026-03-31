@@ -271,7 +271,7 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
             startAtRoot = savedInstanceState.getBoolean(SAVED_START_AT_BOOT);
         }
 
-        if (showThumbnails) {
+        if (showThumbnails || isGridMode) {
             initializeThumbnailParams();
             startThumbnailService();
         }
@@ -289,12 +289,12 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
             int columns = is720dp ? 7 : 5;
             recyclerView.setLayoutManager(new GridLayoutManager(context, columns));
         } else {
-          recyclerView.setLayoutManager(recyclerViewLinearLayoutManager);
+            recyclerView.setLayoutManager(recyclerViewLinearLayoutManager);
         }
         View emptyFolderView = view.findViewById(R.id.empty_folder_view);
         View noSearchResultsView = view.findViewById(R.id.no_search_results_view);
         recyclerViewAdapter = new FileExplorerRecyclerViewAdapter(context, emptyFolderView, noSearchResultsView, this);
-        recyclerViewAdapter.showThumbnails(showThumbnails);
+        recyclerViewAdapter.showThumbnails(showThumbnails || isGridMode);
         recyclerViewAdapter.setWrapFileNames(wrapFilenames);
         recyclerViewAdapter.setGridMode(isGridMode);
         recyclerView.setAdapter(recyclerViewAdapter);
@@ -692,6 +692,14 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
      */
     private void toggleViewMode() {
         isGridMode = !isGridMode;
+
+        if (isGridMode && !isThumbnailsServiceRunning) {
+            initializeThumbnailParams();
+            startThumbnailService();
+        }
+
+        // Update thumbnail setting: in grid mode it's always true, else fallback to global pref
+        recyclerViewAdapter.showThumbnails(showThumbnails || isGridMode);
 
         // Swap the LayoutManager on the live RecyclerView
         RecyclerView recyclerView = requireView().findViewById(R.id.file_explorer_list);
