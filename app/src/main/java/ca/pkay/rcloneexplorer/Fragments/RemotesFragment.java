@@ -497,7 +497,7 @@ public class RemotesFragment extends Fragment implements RemotesRecyclerViewAdap
         builder.setNegativeButton(R.string.cancel, null);
         builder.setPositiveButton(R.string.select, (dialog, which) -> {
             String displayName = remoteNameEdit.getText().toString();
-            Set<String> renamedRemotes = pref.getStringSet(getString(R.string.pref_key_renamed_remotes), new HashSet<>());
+            Set<String> renamedRemotes = new HashSet<>(pref.getStringSet(getString(R.string.pref_key_renamed_remotes), new HashSet<String>()));
             renamedRemotes.add(remoteItem.getName());
             pref.edit()
                     .putString(getString(R.string.pref_key_renamed_remote_prefix, remoteItem.getName()), displayName)
@@ -542,14 +542,14 @@ public class RemotesFragment extends Fragment implements RemotesRecyclerViewAdap
             SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
             SharedPreferences.Editor editor = sharedPreferences.edit();
 
-            Set<String> pinnedRemotes = sharedPreferences.getStringSet(context.getString(R.string.shared_preferences_pinned_remotes), new HashSet<>());
+            Set<String> pinnedRemotes = new HashSet<>(sharedPreferences.getStringSet(context.getString(R.string.shared_preferences_pinned_remotes), new HashSet<String>()));
             if (pinnedRemotes.contains(remoteItem.getName())) {
                 pinnedRemotes.remove(remoteItem.getName());
                 editor.putStringSet(context.getString(R.string.shared_preferences_pinned_remotes), new HashSet<>(pinnedRemotes));
                 editor.apply();
             }
 
-            Set<String> hiddenRemotes = sharedPreferences.getStringSet(context.getString(R.string.shared_preferences_hidden_remotes), new HashSet<>());
+            Set<String> hiddenRemotes = new HashSet<>(sharedPreferences.getStringSet(context.getString(R.string.shared_preferences_hidden_remotes), new HashSet<String>()));
             if (hiddenRemotes.contains(remoteItem.getName())) {
                 hiddenRemotes.remove(remoteItem.getName());
                 editor.putStringSet(context.getString(R.string.shared_preferences_hidden_remotes), new HashSet<>(hiddenRemotes));
@@ -558,7 +558,7 @@ public class RemotesFragment extends Fragment implements RemotesRecyclerViewAdap
 
             AppShortcutsHelper.removeAppShortcut(context, remoteItem.getName());
 
-            Set<String> drawerPinnedRemote = sharedPreferences.getStringSet(context.getString(R.string.shared_preferences_drawer_pinned_remotes), new HashSet<>());
+            Set<String> drawerPinnedRemote = new HashSet<>(sharedPreferences.getStringSet(context.getString(R.string.shared_preferences_drawer_pinned_remotes), new HashSet<String>()));
             if (drawerPinnedRemote.contains(remoteItem.getName())) {
                 drawerPinnedRemote.remove(remoteItem.getName());
                 editor.putStringSet(context.getString(R.string.shared_preferences_drawer_pinned_remotes), new HashSet<>(pinnedRemotes));
