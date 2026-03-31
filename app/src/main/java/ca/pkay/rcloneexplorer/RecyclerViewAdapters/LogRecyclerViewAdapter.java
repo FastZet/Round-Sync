@@ -48,7 +48,7 @@ public class LogRecyclerViewAdapter extends RecyclerView.Adapter<LogRecyclerView
         try {
             long timestamp = Long.parseLong(selectedTrigger.get(SyncLog.TIMESTAMP).toString());
             Date df = new Date(timestamp);
-            String timeFormattedFull = new SimpleDateFormat("dd.MM.yyyy - HH:mm:ss").format(df);
+            String timeFormattedFull = new SimpleDateFormat("dd.MM.yyyy - HH:mm:ss", java.util.Locale.US).format(df);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 timeFormattedFull = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM).format(df);
             }
