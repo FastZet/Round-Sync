@@ -9,6 +9,12 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/action_toggle_view"
+        android:icon="@drawable/ic_grid_view"
+        android:title="@string/toggle_grid_view"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/action_select_all"
         android:title="@string/select_all"
         android:icon="@drawable/ic_select_all"
