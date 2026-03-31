@@ -416,7 +416,7 @@ public class RemoteItem implements Comparable<RemoteItem>, Parcelable {
         } else if (!this.isPinned && remoteItem.isPinned) {
             return 1;
         }
-        return getDisplayName().toLowerCase().compareTo(remoteItem.getDisplayName().toLowerCase());
+        return getDisplayName().toLowerCase(java.util.Locale.ROOT).compareTo(remoteItem.getDisplayName().toLowerCase(java.util.Locale.ROOT));
     }
 
     @Override
