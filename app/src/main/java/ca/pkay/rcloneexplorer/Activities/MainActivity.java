@@ -557,7 +557,7 @@ public class MainActivity extends AppCompatActivity
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("text/*");
-        SimpleDateFormat date = new SimpleDateFormat("yyyy-MM-dd_HHmmss");
+        SimpleDateFormat date = new SimpleDateFormat("yyyy-MM-dd_HHmmss", java.util.Locale.US);
         String localTime = date.format(Calendar.getInstance().getTime());
 
         intent.putExtra(Intent.EXTRA_TITLE, getString(R.string.app_name)+"-backup-"+localTime+".zip");
@@ -843,8 +843,8 @@ public class MainActivity extends AppCompatActivity
                 return null;
             }
             SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
-            Set<String> generated = pref.getStringSet(getString(R.string.pref_key_local_alias_remotes), new HashSet<>());
-            Set<String> renamed = pref.getStringSet(getString(R.string.pref_key_renamed_remotes), new HashSet<>());
+            Set<String> generated = new HashSet<>(pref.getStringSet(getString(R.string.pref_key_local_alias_remotes), new HashSet<String>()));
+            Set<String> renamed = new HashSet<>(pref.getStringSet(getString(R.string.pref_key_renamed_remotes), new HashSet<String>()));
             SharedPreferences.Editor editor = pref.edit();
             for(String remote : generated) {
                 rclone.deleteRemote(remote);
@@ -938,9 +938,9 @@ public class MainActivity extends AppCompatActivity
                 FLog.e(TAG, "addLocalRemote: process error", e);
                 return;
             }
-            Set<String> renamedRemotes = pref.getStringSet(getString(R.string.pref_key_renamed_remotes), new HashSet<>());
-            Set<String> pinnedRemotes = pref.getStringSet(getString(R.string.shared_preferences_drawer_pinned_remotes), new HashSet<>());
-            Set<String> generatedRemotes = pref.getStringSet(getString(R.string.pref_key_local_alias_remotes), new HashSet<>());
+            Set<String> renamedRemotes = new HashSet<>(pref.getStringSet(getString(R.string.pref_key_renamed_remotes), new HashSet<String>()));
+            Set<String> pinnedRemotes = new HashSet<>(pref.getStringSet(getString(R.string.shared_preferences_drawer_pinned_remotes), new HashSet<String>()));
+            Set<String> generatedRemotes = new HashSet<>(pref.getStringSet(getString(R.string.pref_key_local_alias_remotes), new HashSet<String>()));
             renamedRemotes.add(id);
             pinnedRemotes.add(id);
             generatedRemotes.add(id);
