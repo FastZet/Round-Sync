@@ -45,6 +45,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -171,6 +172,8 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
     private String thumbnailServerAuth;
     private int thumbnailServerPort;
     private boolean wrapFilenames;
+    private boolean isGridMode;
+    private MenuItem menuToggleView;
     private SharedPreferences.OnSharedPreferenceChangeListener prefChangeListener;
 
     /**
@@ -247,6 +250,7 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
         };
         sharedPreferences.registerOnSharedPreferenceChangeListener(prefChangeListener);
         wrapFilenames = sharedPreferences.getBoolean(getString(R.string.pref_key_wrap_filenames), true);
+        isGridMode = sharedPreferences.getBoolean(getString(R.string.pref_key_grid_view), false);
 
         if (goToDefaultSet) {
             startAtRoot = sharedPreferences.getBoolean(getString(R.string.pref_key_start_at_root), false);
@@ -280,12 +284,19 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
         RecyclerView recyclerView = view.findViewById(R.id.file_explorer_list);
         recyclerViewLinearLayoutManager = new LinearLayoutManager(context);
         recyclerView.setItemAnimator(new LandingAnimator());
-        recyclerView.setLayoutManager(recyclerViewLinearLayoutManager);
+        // Apply stored layout mode: grid or list
+        if (isGridMode) {
+            int columns = is720dp ? 7 : 5;
+            recyclerView.setLayoutManager(new GridLayoutManager(context, columns));
+        } else {
+          recyclerView.setLayoutManager(recyclerViewLinearLayoutManager);
+        }
         View emptyFolderView = view.findViewById(R.id.empty_folder_view);
         View noSearchResultsView = view.findViewById(R.id.no_search_results_view);
         recyclerViewAdapter = new FileExplorerRecyclerViewAdapter(context, emptyFolderView, noSearchResultsView, this);
         recyclerViewAdapter.showThumbnails(showThumbnails);
         recyclerViewAdapter.setWrapFileNames(wrapFilenames);
+        recyclerViewAdapter.setGridMode(isGridMode);
         recyclerView.setAdapter(recyclerViewAdapter);
 
         if (remote.isRemoteType(RemoteItem.SFTP) && !goToDefaultSet & savedInstanceState == null) {
@@ -587,6 +598,10 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
         menuLink = menu.findItem(R.id.action_link);
         menuHttpServe = menu.findItem(R.id.action_serve);
         menuEmptyTrash = menu.findItem(R.id.action_empty_trash);
+        menuToggleView = menu.findItem(R.id.action_toggle_view);
+
+        // Set the correct icon to reflect current mode
+        updateToggleViewIcon();
 
         if (!remote.hasTrashCan()) {
             menu.findItem(R.id.action_empty_trash).setVisible(false);
@@ -654,6 +669,9 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
             case R.id.action_go_to:
                 showSFTPgoToDialog();
                 return true;
+            case R.id.action_toggle_view:
+                toggleViewMode();
+                return true;
             case android.R.id.home:
                 if (isInMoveMode) {
                     cancelMoveClicked();
@@ -665,6 +683,51 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
                 return true;
             default:
                     return super.onOptionsItemSelected(item);
+        }
+    }
+
+    /**
+     * Toggles between grid and list view modes, updates the RecyclerView LayoutManager,
+     * refreshes the adapter, updates the toolbar icon, and persists the choice.
+     */
+    private void toggleViewMode() {
+        isGridMode = !isGridMode;
+
+        // Swap the LayoutManager on the live RecyclerView
+        RecyclerView recyclerView = requireView().findViewById(R.id.file_explorer_list);
+        if (isGridMode) {
+            int columns = is720dp ? 7 : 5;
+            recyclerView.setLayoutManager(new GridLayoutManager(context, columns));
+        } else {
+            recyclerView.setLayoutManager(new LinearLayoutManager(context));
+        }
+
+        // Inform the adapter so it inflates the right ViewHolder next time
+        recyclerViewAdapter.setGridMode(isGridMode);
+
+        // Update the toolbar icon
+        updateToggleViewIcon();
+
+        // Persist the user's choice
+        PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putBoolean(getString(R.string.pref_key_grid_view), isGridMode)
+                .apply();
+    }
+
+    /**
+     * Updates the toggle-view menu item icon to reflect the current mode.
+     * Shows the "grid" icon when in list mode (tapping will switch to grid),
+     * and the "list" icon when in grid mode (tapping will switch to list).
+     */
+    private void updateToggleViewIcon() {
+        if (menuToggleView == null) return;
+        if (isGridMode) {
+            menuToggleView.setIcon(R.drawable.ic_round_list_24);
+            menuToggleView.setTitle(R.string.toggle_list_view);
+        } else {
+            menuToggleView.setIcon(R.drawable.ic_grid_view);
+            menuToggleView.setTitle(R.string.toggle_grid_view);
         }
     }
 
