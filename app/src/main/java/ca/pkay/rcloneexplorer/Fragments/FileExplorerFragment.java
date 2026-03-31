@@ -951,8 +951,8 @@ public class FileExplorerFragment extends Fragment implements   FileExplorerRecy
         }
 
         for (FileItem item : content) {
-            String fileName = item.getName().toLowerCase();
-            if (fileName.contains(search.toLowerCase())) {
+            String fileName = item.getName().toLowerCase(java.util.Locale.ROOT);
+            if (fileName.contains(search.toLowerCase(java.util.Locale.ROOT))) {
                 results.add(item);
             }
         }
