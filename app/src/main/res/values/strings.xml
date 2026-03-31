@@ -622,4 +622,6 @@
     <string name="pref_proxy_password">Password</string>
     <string name="intro_update_checks_title">Update Notifications</string>
     <string name="intro_update_checks_description">If you want to recieve updates, you can enable the switch below! We will notify if an update is available, and you can then choose to apply it.</string>
+    <string name="toggle_grid_view">Grid View</string>
+    <string name="toggle_list_view">List View</string>
 </resources>
